@@ -1,3 +1,4 @@
+from allennlp.modules.elmo import Elmo
 import torch
 import torch.nn as nn 
 import torch.nn.functional as F
@@ -6,6 +7,15 @@ import torch_geometric as tg
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
 from torch.nn import init
+
+from allennlp.modules.token_embedders import (
+    Embedding,
+    TokenCharactersEncoder,
+    ElmoTokenEmbedder,
+    PretrainedTransformerEmbedder,
+    PretrainedTransformerMismatchedEmbedder,
+)
+
 
 ####################### Basic Ops #############################
 
@@ -385,7 +395,7 @@ class Emb(torch.nn.Module):
 
 class DEAL(nn.Module):
 
-    def __init__(self, emb_dim, attr_num, node_num,device, args,attr_emb_model ,h_layer=Hidden_Layer, num_classes=0 ,feature_dim=64,dropout_p = 0.3, verbose=False):
+    def __init__(self, emb_dim, attr_num, node_num,device, args,attr_emb_model ,h_layer=Hidden_Layer, num_classes=0 ,feature_dim=64,dropout_p = 0.3, verbose=False, is_elmo = False):
         super(DEAL, self).__init__()
         n_hidden=args.layer_num
         self.device = device
@@ -397,7 +407,7 @@ class DEAL(nn.Module):
         self.BCE_mode = args.BCE_mode
         self.gamma = args.gamma
         self.s_a = args.strong_A
-
+        self.is_elmo = is_elmo
         self.num_classes = num_classes
         self.cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         self.pdist = nn.PairwiseDistance(p=2,keepdim=True)       
@@ -420,10 +430,16 @@ class DEAL(nn.Module):
 
         self.node_emb = nn.Embedding(node_num, emb_dim).to(self.device)
 
-        self.attr_emb = attr_emb_model(input_dim=attr_num, feature_dim= emb_dim,
+        if (is_elmo == False):
+
+            self.attr_emb = attr_emb_model(input_dim=attr_num, feature_dim= emb_dim,
                                 hidden_dim=emb_dim, output_dim=emb_dim,
                                 feature_pre=True, layer_num=0 if n_hidden is None else n_hidden,
                                 dropout=dropout_p).to(device)
+
+        else:
+            self.attr_emb = self.setup_elmo()
+
 
 
 
@@ -441,7 +457,12 @@ class DEAL(nn.Module):
         return self.node_layer(first_embs,sec_embs)
     
     def attr_forward(self, nodes,data):
-        node_emb = self.dropout(self.attr_emb(data))
+
+        if self.is_elmo == True:
+            temp = self.attr_emb(data.x)
+        else:
+            temp = self.attr_emb(data)
+        node_emb = self.dropout(temp)
         attr_res = self.attr_layer(node_emb[nodes[:,0]],node_emb[nodes[:,1]])
         return attr_res
     
@@ -514,4 +535,14 @@ class DEAL(nn.Module):
         res = res + self.inter_layer(first_embs,sec_embs)* lambdas[2]
 
         return res
+
+    def setup_elmo(self):
+        elmo_options_file = (
+        "https://allennlp.s3.amazonaws.com/models/elmo/test_fixture/options.json"
+        )
+        elmo_weight_file = (
+        "https://allennlp.s3.amazonaws.com/models/elmo/test_fixture/lm_weights.hdf5"
+        )
+
+        return ElmoTokenEmbedder(options_file=elmo_options_file, weight_file=elmo_weight_file)
     

@@ -56,10 +56,13 @@ embedder = BasicTextFieldEmbedder(token_embedders={"elmo_tokens": elmo_embedding
 def embed_word(text):
     #text = "This is some text."
     tokens = tokenizer.tokenize(text)
+    print(tokens)
     text_field = TextField(tokens, {"elmo_tokens": token_indexer})
     text_field.index(vocab)
     token_tensor = text_field.as_tensor(text_field.get_padding_lengths())
     tensor_dict = text_field.batch_tensors([token_tensor])
+
+    print(tensor_dict)
     embedded_tokens = embedder(tensor_dict)
     return embedded_tokens
 
@@ -68,4 +71,6 @@ def embed_sentence(text):
     sentence = torch.mean(tokens[0],dim = 0)
     return sentence
 
+if __name__ == "__main__":
+    embed_word("abc sfbsbsf")
 

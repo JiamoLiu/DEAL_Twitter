@@ -1,1 +1,1 @@
-python3 train.py --cpu --ind 1 --dataset twitter --output_dim 32
+python3 train.py --cpu --ind 1 --dataset twitter --output_dim 32 --attr_model elmo

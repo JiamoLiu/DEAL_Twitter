@@ -8,6 +8,7 @@ from model import *
 from args import *
 from torch_geometric.nn import Node2Vec
 from torch.utils.data import DataLoader
+from allennlp.modules.elmo import Elmo
 
 # args
 args = make_args()
@@ -90,9 +91,12 @@ for repeat in tqdm(range(args.repeat_num)):
     print("x_train shape:",X_train.shape)
     print("max",X_train.max())
 
-
-    deal = DEAL(args.output_dim, X_train.shape[1], X_train.shape[0], device, args, locals()[args.attr_model])
+    if (args.attr_model == "elmo"):
+        deal = DEAL(args.output_dim, X_train.shape[1], X_train.shape[0], device, args, Elmo,is_elmo=True)
+    else:
+        deal = DEAL(args.output_dim, X_train.shape[1], X_train.shape[0], device, args, locals()[args.attr_model])
     print("arg output dim:",args.output_dim)
+    print("attr model:", args.attr_model)
     optimizer = torch.optim.Adam(deal.parameters(), lr=args.lr) 
 
     max_val_score = np.zeros(1)
@@ -114,7 +118,8 @@ for repeat in tqdm(range(args.repeat_num)):
 
         #
         # forward + backward + optimize
-        #
+        #4
+        #print(data)
 
         loss = deal.default_loss(inputs, labels, data, thetas=theta_list, train_num=int(X_train.shape[0] *args.train_ratio)*2)
 
