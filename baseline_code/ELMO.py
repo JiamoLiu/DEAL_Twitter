@@ -1,6 +1,7 @@
 import warnings
 from typing import Dict
 from allennlp.modules.token_embedders.token_embedder import TokenEmbedder
+from numpy.core.numeric import tensordot
 
 import torch
 from allennlp.data import Token, Vocabulary, TokenIndexer, Tokenizer
@@ -29,6 +30,7 @@ from allennlp.modules.token_embedders import (
 )
 from allennlp.nn import util as nn_util
 import numpy
+from torch import tensor
 
 warnings.filterwarnings("ignore")
 
@@ -50,27 +52,42 @@ elmo_embedding = ElmoTokenEmbedder(
     options_file=elmo_options_file, weight_file=elmo_weight_file
 )
 
-embedder = BasicTextFieldEmbedder(token_embedders={"elmo_tokens": elmo_embedding})
 
+def get_token_arr(text,sep = "//",sep2 = " "):
+    temp = text.split(sep)
+    res = [words for segments in temp for words in segments.split(sep2)]
+    return [Token(t) for t in res]
 
-def embed_word(text):
-    #text = "This is some text."
-    tokens = tokenizer.tokenize(text)
-    print(tokens)
-    text_field = TextField(tokens, {"elmo_tokens": token_indexer})
+def get_token_tensors(token_arr):
+    text_field = TextField(token_arr, {"elmo_tokens": token_indexer})
     text_field.index(vocab)
     token_tensor = text_field.as_tensor(text_field.get_padding_lengths())
     tensor_dict = text_field.batch_tensors([token_tensor])
+    return tensor_dict["elmo_tokens"]["elmo_tokens"]
 
-    print(tensor_dict)
-    embedded_tokens = embedder(tensor_dict)
+def embed_words(text,sep = "//"):
+    #text = "This is some text."
+    tokens = get_token_arr(text,sep)
+    tensor_tensor = get_token_tensors(tokens)
+    embedded_tokens = elmo_embedding(tensor_tensor)
     return embedded_tokens
 
-def embed_sentence(text):
-    tokens = embed_word(text)
+def embed_sentence_with_mean(text,sep = "//"):
+    tokens = embed_words(text,sep)
     sentence = torch.mean(tokens[0],dim = 0)
     return sentence
 
+def embed_tensors(tensors):
+    return elmo_embedding(tensors)
+
+
 if __name__ == "__main__":
-    embed_word("abc sfbsbsf")
+    q = ["A//b","B//c","C//c"]
+    res = []
+    for item in q:
+        res.append(get_token_tensors(get_token_arr(item)))
+
+    tres = torch.cat(res, dim= 0)
+    print(elmo_embedding(tres).shape)
+    
 
