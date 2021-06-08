@@ -349,5 +349,7 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
 
+data/
+
 Train+Test Data-20210601T130513Z-001/
 data/
