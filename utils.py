@@ -595,7 +595,6 @@ def get_train_data(A_train, batch_size,tv_edges,inductive):
     labels = []
     tmp_A = A_train.tolil()
     nodeNum = A_train.shape[0]
-    print("node num:",nodeNum)
     
     if not inductive:
         forbidden_Matrix = sp.lil_matrix(A_train.shape)
@@ -672,11 +671,15 @@ def get_us_attr_dict(X):
     return us_attr_dict
 
 #inductive
-def ind_eval(cmodel, nodes, gt_labels,X,nodes_keep, lambdas = (0,1,1)):
+def ind_eval(cmodel, nodes, gt_labels,X,nodes_keep, args,all_attr_tensors =None,lambdas = (0,1,1)):
 
     # anode_emb = torch.sparse.mm(data.x, cmodel.attr_emb(torch.arange(data.x.shape[1]).to(cmodel.device)))
-    test_data = Data(X, None)
-    anode_emb = cmodel.attr_emb(test_data)
+    test_data = Data(X, None,train_tensor=all_attr_tensors)
+
+    if args.attr_model == "elmo":
+        anode_emb = cmodel.attr_emb(all_attr_tensors)
+    else:
+        anode_emb = cmodel.attr_emb(test_data)
 
     first_embs = anode_emb[nodes[:,0]]
 
@@ -740,16 +743,6 @@ def load_datafile(args):
         with np.load(data_array_file, allow_pickle=True) as data_arrays:
             # need to figure out what this matrix is
             train_ones,val_ones, val_zeros, test_ones, test_zeros = data_arrays.values()
-            print(data_arrays.files)
-            #print(val_ones)
-            print("============================================")
-            #print(train_ones)
-            print("A adj:",A.shape)
-            print("train ones:",train_ones.shape)
-            print("val ones:",val_ones.shape)
-            print("val zeroes:", val_zeros.shape)
-            print("test ones:",test_ones.shape)
-            print("test zeroes:", test_zeros.shape)
     else:
         assert False, "No data file"
 
@@ -775,7 +768,6 @@ def load_datafile(args):
         #         print(i)
 
         # print(A_train.nnz)
-        print(train_ones.shape)
         #print(np.load(folder+'nodes_keep.npy'))
         
         #print(X_train)
@@ -785,7 +777,6 @@ def load_datafile(args):
         A_train = edges_to_sparse(train_ones,X.shape[0])
         X_train = X
 
-    print("x_train shape on loading:", X_train.shape)
 
     if not os.path.exists(folder+'trained_models/'):
         os.mkdir(folder+'trained_models/')
@@ -797,9 +788,7 @@ def load_datafile(args):
                        for h in hops}
 
     test_edges = np.row_stack((test_ones, test_zeros))
-    print("test edges:", test_edges.shape)
     val_edges = np.row_stack((val_ones, val_zeros))
-    print(test_edges)
     gt_labels = A[test_edges[:, 0], test_edges[:, 1]].A1
     ## test_ground_truth = torch.LongTensor(1-gt_labels) * 2 
 
@@ -807,8 +796,6 @@ def load_datafile(args):
         sp_X = convert_sSp_tSp(X).to(device).to_dense()
         sp_attrM = convert_sSp_tSp(X_train).to(device)
         # us_attr_dict = get_us_attr_dict(X_train)
-        print(A_train.shape)
-        print(val_edges.shape)
         val_labels = A_train[val_edges[:, 0], val_edges[:, 1]].A1
     else:
         # sp_attrM = convert_sSp_tSp(X).to(device)
@@ -826,16 +813,14 @@ def load_datafile(args):
     att_tensor=None
     train_att_tensor= None
     if args.attr_model == "elmo":
-        att_tensor = convert_train_tensors(np.load(folder+"attr_tensor.npz", allow_pickle=True )["arr_0"])
-        train_att_tensor = convert_train_tensors(np.load(folder+"train_attr_tensor.npz",allow_pickle=True)["arr_0"])
+        att_tensor = torch.load(folder +"attr_text_tensor.pt")
+        train_att_tensor = torch.load(folder+"train_attr_text_tensor.pt")
         data.train_tensor = train_att_tensor
 
 
     return A, X, A_train, X_train, data, train_ones, val_edges, test_edges, folder, val_labels, gt_labels, nodes_keep, att_tensor,train_att_tensor
 
-def convert_train_tensors(train_tensor_np):
-    return train_tensor_np
-    return torch.from_numpy(train_tensor_np)
+
 
 
 def get_random_anchorset(n,c=0.5):

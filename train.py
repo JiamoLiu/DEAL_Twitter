@@ -88,15 +88,11 @@ print(args)
 for repeat in tqdm(range(args.repeat_num)):
     for d in margin_dict:
         margin_dict[d].append([])
-    print("x_train shape:",X_train.shape)
-    print("max",X_train.max())
 
     if (args.attr_model == "elmo"):
         deal = DEAL(args.output_dim, X_train.shape[1], X_train.shape[0], device, args, Elmo,is_elmo=True)
     else:
         deal = DEAL(args.output_dim, X_train.shape[1], X_train.shape[0], device, args, locals()[args.attr_model])
-    print("arg output dim:",args.output_dim)
-    print("attr model:", args.attr_model)
     optimizer = torch.optim.Adam(deal.parameters(), lr=args.lr) 
 
     max_val_score = np.zeros(1)
@@ -140,7 +136,8 @@ for repeat in tqdm(range(args.repeat_num)):
             if tmp_max > max_val_score:
                 max_val_score = tmp_max
                 if args.inductive:
-                    final_scores = avg_loss, *ind_eval(deal, test_edges, gt_labels,sp_X,nodes_keep ,lambdas=lambda_list)
+
+                    final_scores = avg_loss, *ind_eval(deal, test_edges, gt_labels,sp_X,nodes_keep ,args, att_tensor,lambdas=lambda_list)
                 else:
                     final_scores = avg_loss, *tran_eval(deal, test_edges, gt_labels,data ,lambdas=lambda_list)
             for tmp_d in margin_dict:
