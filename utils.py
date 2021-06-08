@@ -28,7 +28,8 @@ class Data:
     dists_max = None
     dists_argmax = None
     dists = None
-    def __init__(self, x, edge_index, dists_max = None, dists_argmax = None, dists = None):
+    train_tensor = None
+    def __init__(self, x, edge_index, dists_max = None, dists_argmax = None, dists = None, train_tensor = None):
         self.x = x
         self.edge_index = edge_index
         self.dists_max = dists_max
@@ -737,7 +738,7 @@ def load_datafile(args):
         X = load_sp(folder,'X')
         #z = np.load(folder+'z.npy')
         with np.load(data_array_file, allow_pickle=True) as data_arrays:
-            # need to figure out how this matrix is
+            # need to figure out what this matrix is
             train_ones,val_ones, val_zeros, test_ones, test_zeros = data_arrays.values()
             print(data_arrays.files)
             #print(val_ones)
@@ -822,7 +823,20 @@ def load_datafile(args):
         data.dists = data.dists.to(device)
         preselect_anchor(data, layer_num=args.layer_num, anchor_num=64, device=device)
 
-    return A, X, A_train, X_train, data, train_ones, val_edges, test_edges, folder, val_labels, gt_labels, nodes_keep
+    att_tensor=None
+    train_att_tensor= None
+    if args.attr_model == "elmo":
+        att_tensor = convert_train_tensors(np.load(folder+"attr_tensor.npz", allow_pickle=True )["arr_0"])
+        train_att_tensor = convert_train_tensors(np.load(folder+"train_attr_tensor.npz",allow_pickle=True)["arr_0"])
+        data.train_tensor = train_att_tensor
+
+
+    return A, X, A_train, X_train, data, train_ones, val_edges, test_edges, folder, val_labels, gt_labels, nodes_keep, att_tensor,train_att_tensor
+
+def convert_train_tensors(train_tensor_np):
+    return train_tensor_np
+    return torch.from_numpy(train_tensor_np)
+
 
 def get_random_anchorset(n,c=0.5):
     m = int(np.log2(n))

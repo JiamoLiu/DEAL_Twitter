@@ -457,11 +457,17 @@ class DEAL(nn.Module):
         return self.node_layer(first_embs,sec_embs)
     
     def attr_forward(self, nodes,data):
-
         if self.is_elmo == True:
-            temp = self.attr_emb(data.x)
+            print("tensor file shape:",data.train_tensor.shape)
+            print("nodes input shape", nodes.shape)
+            print("nodes are:", nodes)
+            #tensors = get_tensor_from_nodes(nodes)
+            temp = self.attr_emb(data.train_tensor)
         else:
+            
             temp = self.attr_emb(data)
+            #print("attr_embd shape:",temp.shape)
+            #print(temp)
         node_emb = self.dropout(temp)
         attr_res = self.attr_layer(node_emb[nodes[:,0]],node_emb[nodes[:,1]])
         return attr_res
@@ -474,6 +480,13 @@ class DEAL(nn.Module):
         #print("inter_forward", nodes)
         sec_embs = self.node_emb(nodes[:,1])
         return self.inter_layer(first_embs,sec_embs)
+
+    def get_tensor_from_nodes(nodes):
+        for i in nodes.shape[0]:
+            for j in nodes.shape[1]:
+                return 0
+
+
 
 
     def RLL_loss(self,scores,dists,labels,alpha=0.2, mode='cos'):
@@ -508,6 +521,8 @@ class DEAL(nn.Module):
          
         unique_nodes = torch.unique(nodes)
         first_embs = self.attr_emb(data)[unique_nodes]
+        print("loss att emb shape:",self.attr_emb(data).shape)
+        print(nodes.shape)
 
         sec_embs = self.node_emb(unique_nodes)
         loss_list.append(-self.cos(first_embs,sec_embs).mean()*thetas[2])

@@ -28,7 +28,7 @@ lambda_list = (0.1,0.85,0.05)
 print(f'theta_list:{theta_list}')
 
 
-A, X, A_train, X_train, data, train_ones, val_edges, test_edges, folder, val_labels, gt_labels, nodes_keep = load_datafile(args)
+A, X, A_train, X_train, data, train_ones, val_edges, test_edges, folder, val_labels, gt_labels, nodes_keep, att_tensor, att_train_tensor = load_datafile(args)
 
 if args.inductive:
     sp_X = convert_sSp_tSp(X).to(device).to_dense()
@@ -120,7 +120,7 @@ for repeat in tqdm(range(args.repeat_num)):
         # forward + backward + optimize
         #4
         #print(data)
-
+    
         loss = deal.default_loss(inputs, labels, data, thetas=theta_list, train_num=int(X_train.shape[0] *args.train_ratio)*2)
 
         loss.backward()
