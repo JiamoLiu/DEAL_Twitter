@@ -802,6 +802,8 @@ def load_datafile(args):
         # us_attr_dict = get_us_attr_dict(X)
         val_labels = A[val_edges[:, 0], val_edges[:, 1]].A1
     
+    print(X_train.dtype)
+    print(train_ones.T)
     data = Data(convert_sSp_tSp(X_train).to_dense().to(device), torch.LongTensor(train_ones.T).to(device))
 
     data.dists = load_dists(args.dataset)

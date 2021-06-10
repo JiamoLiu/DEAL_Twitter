@@ -36,7 +36,7 @@ attr_tensor_file = "attr_token_tensor.npz"
 train_attr_tensor_file = "train_attr_token_tensor.npz"
 attr_text_tensor_file = "attr_text_tensor.pt"
 train_attr_text_tensor_file = "train_attr_text_tensor.pt"
-number_of_samples = 100
+number_of_samples = 1000
 train_range = 0.72
 val_range = 0.08
 
@@ -112,28 +112,58 @@ def get_link_ones(pandas_in, node_index):
         res.append([node_index[row["A"]],node_index[row["B"]]])
     return numpy.array(res)
 
+
+
+def sample_zero_forever(mat,non_zeroes):
+    res = []
+    nonzero_or_sampled = set(zip(*non_zeroes))
+    while True:
+        t = tuple(numpy.random.randint(0, mat.shape[0], 2))
+        if t not in nonzero_or_sampled:
+            yield [int(t[0]),int(t[1])]
+            nonzero_or_sampled.add(t)
+
+
+def sample_zero_n(mat,non_zeroes,n=100):
+    itr = sample_zero_forever(mat,non_zeroes)
+    return [next(itr) for _ in range(n)]
+
+
 def get_linked_nodes_and_links_from_sparse(sparse_adj):
     res = []
     connected = []
-    disconnected = []
-    for i in range(sparse_adj.shape[0]):
-        for j in range(sparse_adj.shape[1]):
-            if i == j:
-                continue
-            if (sparse_adj[i,j] == 1):
-                if i not in res:
-                    res.append(i)
-                if j not in res:
-                    res.append(j)
+    non_zeroes = sparse_adj.nonzero()
+    non_zeroes_rows = non_zeroes[0]
+    non_zeroes_col = non_zeroes[1]
+    for i in range(non_zeroes_rows.shape[0]):
+        row_index = non_zeroes_rows[i]
+        col_index = non_zeroes_col[i]
+        if ([row_index,col_index] not in connected and [col_index,row_index] not in connected):
+            connected.append([row_index,col_index])
 
-                if ([i,j] not in connected and [j,i] not in connected):
-                    connected.append([i,j])
-            if (sparse_adj[i,j] == 0):
+    disconnected = sample_zero_n(sparse_adj,non_zeroes,5*len(connected))
+    print(numpy.array(disconnected).dtype)
 
-                if ([i,j] not in disconnected and [j,i] not in disconnected):
-                    disconnected.append([i,j])
+    #print(numpy.array(disconnected,numpy.int64).dtype)
+
+    # for i in range(sparse_adj.shape[0]):
+    #     for j in range(sparse_adj.shape[1]):
+    #         if i == j:
+    #             continue
+    #         if (sparse_adj[i,j] == 1):
+    #             if i not in res:
+    #                 res.append(i)
+    #             if j not in res:
+    #                 res.append(j)
+
+    #             if ([i,j] not in connected and [j,i] not in connected):
+    #                 connected.append([i,j])
+    #         if (sparse_adj[i,j] == 0):
+
+    #             if ([i,j] not in disconnected and [j,i] not in disconnected):
+    #                 disconnected.append([i,j])
     
-    return numpy.array(sorted(res)), numpy.array(connected), numpy.array(disconnected)
+    return numpy.array(connected,dtype= numpy.int64), numpy.array(disconnected,numpy.int64)
 
 
 def get_text_tensor(attr_arr):
@@ -164,15 +194,15 @@ def generate_train_val_test_samples(sparse_adj,node_index,node_data):
     #print(val_start)
     
     train_adj_matrix = sparse_adj[0:train_stop,0:train_stop]
-    train_linked_nodes,train_ones,train_zeroes = get_linked_nodes_and_links_from_sparse(train_adj_matrix)
+    train_ones,train_zeroes = get_linked_nodes_and_links_from_sparse(train_adj_matrix)
     
     
     val_adj_matrix = sparse_adj[val_start: train_stop, 0:train_stop]
-    linked_nodes,val_ones,val_zeroes = get_linked_nodes_and_links_from_sparse(val_adj_matrix)
+    val_ones,val_zeroes = get_linked_nodes_and_links_from_sparse(val_adj_matrix)
     #print(val_adj_matrix)
 
     test_adj_matrix = sparse_adj[train_stop : sparse_adj.shape[0],:]
-    linked_nodes,test_ones,test_zeroes = get_linked_nodes_and_links_from_sparse(test_adj_matrix)
+    test_ones,test_zeroes = get_linked_nodes_and_links_from_sparse(test_adj_matrix)
 
     attr_arr = get_node_attr_as_array(train_adj_matrix, node_index, node_data)
     train_sentence_embed_matrix = get_elmo_embedding_as_sparse(attr_arr)
